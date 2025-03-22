@@ -1,5 +1,6 @@
 import multer from 'multer';
 import { computerVisionClient } from '../configs/azure.config.js';
+import { Ingredients } from '../models/Ingredients.model.js';
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage }).single('image');
@@ -65,8 +66,6 @@ const extractIngredients = (rawText)=> {
 }
 
 
-
-
 const processImageLabel = async (req, res) => {
     try {
         upload(req, res, async (err) => {
@@ -121,4 +120,38 @@ const processImageLabel = async (req, res) => {
     }
 };
 
-export { processImageLabel };
+
+const uploadIngredientData = async (req, res) => {
+    try {
+        const ingredientData = {
+            name: req.body.name,
+            source: req.body.source,
+            function: req.body.function,
+            description: req.body.description || '',
+            isAllergen: req.body.isAllergen || false,
+            allergies: req.body.allergies || [],
+            isVegan: req.body.isVegan || false,
+            isPregnantSafe: req.body.isPregnantSafe || false,
+            ageRestriction: req.body.ageRestriction || 0,
+            isAddictive: req.body.isAddictive || false,
+            isHarmful: req.body.isHarmful || false
+        };
+
+        const ingredient = new Ingredients(ingredientData);
+        await ingredient.save();
+
+        res.status(201).json({
+            success: true,
+            message: 'Ingredient data uploaded successfully',
+            data: ingredient
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Failed to upload ingredient data',
+            error: error.message
+        });
+    }
+};
+
+export { uploadIngredientData,processImageLabel };
