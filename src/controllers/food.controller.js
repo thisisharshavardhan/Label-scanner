@@ -134,7 +134,7 @@ const uploadIngredientData = async (req, res) => {
             isPregnantSafe: req.body.isPregnantSafe || false,
             ageRestriction: req.body.ageRestriction || 0,
             isAddictive: req.body.isAddictive || false,
-            isHarmful: req.body.isHarmful || false
+            harmLevel: req.body.harmLevel || 0,
         };
 
         const ingredient = new Ingredients(ingredientData);

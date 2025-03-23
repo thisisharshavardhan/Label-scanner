@@ -5,6 +5,7 @@ const IngredientsSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
+	unique: true,
         trim: true,
     },
     source: {
@@ -17,7 +18,7 @@ const IngredientsSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        enum: ['flavouring', 'preservative', 'colouring', 'emulsifier', 'sweetener', 'thickener', 'stabiliser', 'raising agent', 'acidity regulator', 'antioxidant', 'humectant', 'bulking agent', 'glazing agent', 'firming agent', 'gelling agent', 'flour treatment agent', 'packaging gas', 'propellant', 'sequestrant'],
+        enum: ['flavouring', 'preservative', 'colouring', 'emulsifier', 'sweetener', 'thickener', 'stabiliser', 'raising agent', 'acidity regulator', 'antioxidant', 'humectant', 'bulking agent', 'glazing agent', 'firming agent', 'gelling agent', 'flour treatment agent', 'packaging gas', 'propellant', 'sequestrant','enhance texture'],
     },
     description: {
         type: String,
@@ -55,11 +56,11 @@ const IngredientsSchema = new mongoose.Schema({
         default:false,
         required: true,
     },
-    isHarmful:{
-        type: Boolean,
-        default:false,
-        required: true,
-    }
+    harmLevel:{
+	type: Number,
+	required: true,
+	enum: [0,1,2,3],
+}
 
     
 },{
