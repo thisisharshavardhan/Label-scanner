@@ -1,6 +1,7 @@
 import multer from 'multer';
 import { computerVisionClient } from '../configs/azure.config.js';
 import { Ingredients } from '../models/Ingredients.model.js';
+import sharp from 'sharp';
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage }).single('image');
@@ -8,6 +9,8 @@ const upload = multer({ storage: storage }).single('image');
 
 
 const processImageLabel = async (req, res) => {
+    console.log('image called');
+    
     const extractIngredients = (rawText)=> {
         const commonIngredientIndicators = [
             'ingredients:', 
@@ -15,9 +18,6 @@ const processImageLabel = async (req, res) => {
             'made with',
             'composed of',
             'ingredients list',
-            '%*-',
-            '%* -',
-            '% -'
         ];
         const endIndicators = [
             'nutrition facts',
@@ -43,7 +43,7 @@ const processImageLabel = async (req, res) => {
                 startIndex = index + indicator.length;
                 break;
             }
-        }
+        }1
     
         if (startIndex === -1) return []; 
     
@@ -67,6 +67,119 @@ const processImageLabel = async (req, res) => {
     
         return cleanedIngredients;
     }
+
+
+const extractIngredientsInfo = async (ingredients) => {
+    try {
+        if (!ingredients || ingredients.length === 0) {
+            return {
+                detailedIngredients: [],
+                summary: {
+                    totalIngredients: 0,
+                    foundIngredients: 0,
+                    allergens: [],
+                    veganStatus: true,
+                    pregnancySafe: true,
+                    minAgeRestriction: 0,
+                    harmfulIngredients: [],
+                    addictiveIngredients: [],
+                    notFoundIngredients: []
+                }
+            };
+        }
+
+        // Enhanced cleaning and validation
+        const validIngredients = ingredients
+            .filter(ing => ing && typeof ing === 'string')
+            .map(ing => {
+                return ing
+                    .trim()
+                    .toLowerCase()
+                    // Remove E-numbers in parentheses
+                    .replace(/\([e\d]+\)/gi, '')
+                    // Remove percentages
+                    .replace(/\d+(\.\d+)?%/g, '')
+                    // Remove parentheses and their contents
+                    .replace(/\([^)]*\)/g, '')
+                    // Remove special characters except hyphens
+                    .replace(/[^a-z\s-]/g, ' ')
+                    // Normalize spaces
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            })
+            .filter(ing => ing.length >= 2);
+
+        // Use more flexible matching with $regex
+        const ingredientsInfo = await Ingredients.find({
+            $or: validIngredients.map(ing => ({
+                name: {
+                    $regex: ing,
+                    $options: 'i'
+                }
+            }))
+        });
+
+            const summary = {
+            totalIngredients: validIngredients.length,
+            foundIngredients: ingredientsInfo.length,
+            allergens: [],
+            veganStatus: true,
+            pregnancySafe: true,
+            minAgeRestriction: 0,
+            harmfulIngredients: [],
+            addictiveIngredients: [],
+            notFoundIngredients: []
+        };
+
+        const foundNames = ingredientsInfo.map(ing => ing.name.toLowerCase());
+        
+
+        ingredientsInfo.forEach(ing => {
+            if (ing.isAllergen) {
+                summary.allergens.push({
+                    name: ing.name,
+                    allergies: ing.allergies
+                });
+            }
+
+            if (!ing.isVegan) {
+                summary.veganStatus = false;
+            }
+
+            if (!ing.isPregnantSafe) {
+                summary.pregnancySafe = false;
+            }
+
+
+            summary.minAgeRestriction = Math.max(summary.minAgeRestriction, ing.ageRestriction);
+
+            if (ing.harmLevel >= 2) {
+                summary.harmfulIngredients.push({
+                    name: ing.name,
+                    harmLevel: ing.harmLevel
+                });
+            }
+
+            if (ing.isAddictive) {
+                summary.addictiveIngredients.push(ing.name);
+            }
+        });
+
+        summary.notFoundIngredients = ingredients.filter(ing => 
+            !foundNames.includes(ing.toLowerCase())
+        );
+
+        return {
+            detailedIngredients: ingredientsInfo,
+            summary: summary
+        };
+    } catch (error) {
+        throw new Error(`Error extracting ingredient information: ${error.message}`);
+    }
+};
+
+
+
     try {
         upload(req, res, async (err) => {
             if (err) {
@@ -76,6 +189,21 @@ const processImageLabel = async (req, res) => {
             if (!req.file) {
                 return res.status(400).json({ error: 'No file uploaded' });
             }
+
+            if (req.file.size > 4 * 1024 * 1024) {
+                const compressedBuffer = await sharp(req.file.buffer)
+                .resize({ width: 1200 }) // Resize if needed
+                .jpeg({ quality: 70 })   // Compress
+                .toBuffer();
+            
+                if (compressedBuffer.length > 4 * 1024 * 1024) {
+                return res.status(400).json({ error: 'Compressed image still exceeds 4MB.' });
+                }
+                else{
+                    req.file.buffer = compressedBuffer;
+                }
+            }
+
 
             try {
                 const result = await computerVisionClient.readInStream(req.file.buffer);
@@ -95,17 +223,23 @@ const processImageLabel = async (req, res) => {
 
                         const ingredients = extractIngredients(extractedText);
 
+                        const ingredientsAnalysis = await extractIngredientsInfo(ingredients);
+
                         return res.status(200).json({
                             success: true,
                             ingredients: ingredients || [],
+                            analysis: ingredientsAnalysis
                         });
                 } else {
+                    console.log("fucked up "+error);
+                    
                     return res.status(500).json({
                         success: false,
                         error: 'Text extraction failed'
                     });
                 }
             } catch (error) {
+                console.log("fucked up "+error);
                 return res.status(500).json({
                     success: false,
                     error: error.message
@@ -113,10 +247,12 @@ const processImageLabel = async (req, res) => {
             }
         });
     } catch (error) {
+        console.log("fucked up "+error);
         return res.status(500).json({
             success: false,
             error: 'Server error'
         });
+        
     }
 };
 

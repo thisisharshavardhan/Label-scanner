@@ -18,7 +18,7 @@ const IngredientsSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-        enum: ['flavouring', 'preservative', 'colouring', 'emulsifier', 'sweetener', 'thickener', 'stabiliser', 'raising agent', 'acidity regulator', 'antioxidant', 'humectant', 'bulking agent', 'glazing agent', 'firming agent', 'gelling agent', 'flour treatment agent', 'packaging gas', 'propellant', 'sequestrant','enhance texture'],
+        enum: ['flavouring','Leavening agent', 'preservative', 'colouring', 'emulsifier', 'sweetener', 'thickener', 'stabiliser', 'raising agent', 'acidity regulator', 'antioxidant', 'humectant', 'bulking agent', 'glazing agent', 'firming agent', 'gelling agent', 'flour treatment agent', 'packaging gas', 'propellant', 'sequestrant','enhance texture'],
     },
     description: {
         type: String,
