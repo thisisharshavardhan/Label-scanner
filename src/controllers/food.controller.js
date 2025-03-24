@@ -222,7 +222,12 @@ const extractIngredientsInfo = async (ingredients) => {
                         .join('\n');
 
                         const ingredients = extractIngredients(extractedText);
-
+                        if(ingredients.length === 0){
+                            return res.status(400).json({
+                                success: false,
+                                error: 'No ingredients found in the image'
+                            });
+                        }
                         const ingredientsAnalysis = await extractIngredientsInfo(ingredients);
 
                         return res.status(200).json({
